@@ -9,6 +9,12 @@ public class CameraBehavior : MonoBehaviour
     [SerializeField] private float m_minAngleX = -90;
     [SerializeField] private float m_maxAngleX = 90;
     private Vector2 m_mouseDelta;
+
+    [Header("Aim")]
+    [SerializeField] private float m_maxDistanceAimPoint;
+    private Vector3 m_currentAimPoint = new Vector3();
+
+
     #region Unity Function
 
     void Start()
@@ -20,6 +26,7 @@ public class CameraBehavior : MonoBehaviour
     void LateUpdate()
     {
         UpdateCameraMouvement();
+        UpdateAimPoint();
     }
 
     #endregion
@@ -33,6 +40,23 @@ public class CameraBehavior : MonoBehaviour
 
     #endregion
 
+
+    private void UpdateAimPoint()
+    {
+        RaycastHit hit = new RaycastHit();
+        if(Physics.Raycast(transform.position, transform.forward,out hit, m_maxDistanceAimPoint))
+        {
+            m_currentAimPoint = hit.point;
+        }
+        else
+        {
+            m_currentAimPoint = transform.position + transform.forward * m_maxDistanceAimPoint;
+        }
+    }
+
+    public Vector3 GetCurrentAimPoint() { return m_currentAimPoint; }
+    public float GetMaxAimDistance() { return m_maxDistanceAimPoint; }
+
     public void UpdateCameraMouvement()
     {
         Quaternion nextRotation = transform.rotation;
@@ -44,5 +68,7 @@ public class CameraBehavior : MonoBehaviour
         transform.rotation = nextRotation;
 
     }
+
+
 
 }

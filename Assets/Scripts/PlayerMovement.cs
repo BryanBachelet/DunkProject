@@ -33,6 +33,11 @@ public class PlayerMovement : MonoBehaviour
     private PlayerState m_currentPlayerState;
     public UnityEvent<PlayerState> OnPlayerStateChange;
 
+    private Vector3 m_impulseDir;
+    private float m_impulePower = 0.0f;
+    private float m_currentPowerReduction;
+   [SerializeField] private float m_powerReduceDuration =1.0f;
+
     [Header("Debug Parameters")]
     [SerializeField] private bool m_activeDebugState;
 
@@ -93,7 +98,6 @@ public class PlayerMovement : MonoBehaviour
         RaycastHit hit = new RaycastHit();
         if (Physics.Raycast(m_rigidbody.position, Vector3.down, out hit, 2.5f))
         {
-            Debug.Log("Hit Ray name " + hit.collider.name);
             m_onGround = hit.collider.tag == "Ground";
         }
         else
@@ -129,7 +133,7 @@ public class PlayerMovement : MonoBehaviour
 
         RaycastHit hit = new RaycastHit();
 
-        if (Physics.Raycast(m_rigidbody.position + Vector3.down *.9f, nextMvtDirection.normalized, out hit, 1.0f) )
+        if (Physics.Raycast(m_rigidbody.position + Vector3.down * .9f, nextMvtDirection.normalized, out hit, 1.0f))
         {
             if (hit.collider.tag == "Ground")
             {
@@ -138,18 +142,39 @@ public class PlayerMovement : MonoBehaviour
 
         }
 
-        m_rigidbody.AddForce(nextMvtDirection, ForceMode.Impulse);
-        Vector3 vel = new Vector3(m_rigidbody.linearVelocity.x, 0, m_rigidbody.linearVelocity.z);
-        vel = Vector3.ClampMagnitude(vel, m_mvtSpeed) * Time.fixedDeltaTime;
+
+        Vector3 finalVelocity = Vector3.zero;
+      //  m_rigidbody.AddForce(nextMvtDirection *Time.fixedDeltaTime, ForceMode.Impulse);
+        Vector3 horizontalVel = new Vector3(m_rigidbody.linearVelocity.x, 0, m_rigidbody.linearVelocity.z);
+        float dotResult = Vector3.Dot(horizontalVel.normalized, nextMvtDirection);
+        Vector3 velMove = new Vector3(nextMvtDirection.x, 0, nextMvtDirection.z);
+        float mvtSpeed = m_mvtSpeed - (horizontalVel * dotResult).magnitude ;
+        mvtSpeed = Mathf.Clamp(mvtSpeed, 0, m_mvtSpeed);
+        velMove = Vector3.ClampMagnitude(velMove, mvtSpeed) ;
+
+        finalVelocity += velMove;
 
 
+
+        Vector3 impulseVel = Vector3.zero;
+        if (m_impulseDir != Vector3.zero)
+        {
+            if (m_currentPowerReduction == 0) m_rigidbody.linearVelocity = Vector3.zero;
+            impulseVel = m_impulseDir * m_impulePower;
+            m_impulePower = Mathf.Lerp(m_impulePower,0, m_currentPowerReduction / m_powerReduceDuration);
+            m_currentPowerReduction += Time.fixedDeltaTime;
+
+            m_rigidbody.AddForce(impulseVel, ForceMode.Impulse);
+            m_impulseDir = Vector3.zero;
+        }
+       //finalVelocity += impulseVel;
         float addGravity = 0.0f;
         if (m_rigidbody.linearVelocity.y < 0 || !m_isInputJumpPerfom && !m_onGround)
         {
             addGravity += Physics.gravity.y * Time.fixedDeltaTime;
         }
 
-        m_rigidbody.linearVelocity = new Vector3(vel.x, m_rigidbody.linearVelocity.y + addGravity, vel.z);
+        m_rigidbody.linearVelocity = new Vector3(m_rigidbody.linearVelocity.x + finalVelocity.x, m_rigidbody.linearVelocity.y   + addGravity, m_rigidbody.linearVelocity.z + +finalVelocity.z) ;
 
     }
     private void AddJump()
@@ -158,6 +183,16 @@ public class PlayerMovement : MonoBehaviour
 
         m_rigidbody.AddForce(Vector3.up * m_jumpStrength, ForceMode.Impulse);
     }
+
+    public void AddImpulsion(Vector3 dir, float power)
+    {
+        // m_rigidbody.linearVelocity = Vector3.zero;
+
+        m_impulseDir = dir.normalized;
+        m_impulePower = power;
+        m_currentPowerReduction = 0.0f;
+    }
+
 
     #region State Inputs
 
